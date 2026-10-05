@@ -170,6 +170,7 @@ test('admin dashboard works', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Password' }).fill('a');
   await page.getByRole('button', { name: 'Login' }).click();
 
+  await expect(page.getByRole('link', { name: 'Admin' })).toBeVisible();
   await page.getByRole('link', { name: 'Admin' }).click();
 
   await expect(page.getByText("Mama Ricci's kitchen")).toBeVisible();
@@ -231,6 +232,7 @@ test('create franchise works', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Password' }).fill('a');
   await page.getByRole('button', { name: 'Login' }).click();
 
+  await expect(page.getByRole('link', { name: 'Admin' })).toBeVisible();
   await page.goto('/admin-dashboard');
   await page.getByRole('button', { name: 'Add Franchise' }).click();
 
@@ -307,6 +309,7 @@ test('close franchise works', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Password' }).fill('a');
   await page.getByRole('button', { name: 'Login' }).click();
 
+  await expect(page.getByRole('link', { name: 'Admin' })).toBeVisible();
   await page.goto('/admin-dashboard');
   await page.getByRole('button', { name: 'Close' }).first().click();
 
