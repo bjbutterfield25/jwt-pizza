@@ -6,18 +6,35 @@ async function basicInit(page) {
   const validUsers = { 'd@jwt.com': { id: '3', name: 'Kai Chen', email: 'd@jwt.com', password: 'a', roles: [{ role: Role.Diner }] } };
 
   await page.route('*/**/api/auth', async (route) => {
-    const loginReq = route.request().postDataJSON();
-    const user = validUsers[loginReq.email];
-    if (!user || user.password !== loginReq.password) {
+    const request = route.request();
+    const authReq = request.postDataJSON();
+    const method = request.method();
+
+    if (method === 'POST') {
+      const newUser = {
+        id: String(Date.now()),
+        name: authReq.name,
+        email: authReq.email,
+        password: authReq.password,
+        roles: [{ role: Role.Diner }],
+      };
+      validUsers[authReq.email] = newUser;
+      loggedInUser = newUser;
+      await route.fulfill({ json: { user: newUser, token: 'abcdef' } });
+      return;
+    }
+
+    const user = validUsers[authReq.email];
+    if (!user || user.password !== authReq.password) {
       await route.fulfill({ status: 401, json: { error: 'Unauthorized' } });
       return;
     }
-    loggedInUser = validUsers[loginReq.email];
+    loggedInUser = validUsers[authReq.email];
     const loginRes = {
       user: loggedInUser,
       token: 'abcdef',
     };
-    expect(route.request().method()).toBe('PUT');
+    expect(method).toBe('PUT');
     await route.fulfill({ json: loginRes });
   });
 
@@ -85,6 +102,18 @@ test('login', async ({ page }) => {
   await page.getByRole('button', { name: 'Login' }).click();
 
   await expect(page.getByRole('link', { name: 'KC' })).toBeVisible();
+});
+
+test('register', async ({ page }) => {
+  await basicInit(page);
+  await page.getByRole('link', { name: 'Register' }).click();
+
+  await page.getByPlaceholder('Full name').fill('New User');
+  await page.getByPlaceholder('Email address').fill('new@jwt.com');
+  await page.getByPlaceholder('Password').fill('secret');
+  await page.getByRole('button', { name: 'Register' }).click();
+
+  await expect(page.getByRole('link', { name: 'NU' })).toBeVisible();
 });
 
 test('about page works', async ({ page }) => {
