@@ -377,6 +377,37 @@ test('diner dashboard works', async ({ page }) => {
   await expect(page.getByText('999999999')).toBeVisible();
 });
 
+test('delivery page works', async ({ page }) => {
+  await basicInit(page);
+
+  await page.route('*/**/api/order/verify', async (route) => {
+    expect(route.request().method()).toBe('POST');
+
+    const payload = route.request().postDataJSON();
+    expect(payload.jwt).toBe('error');
+
+    await route.fulfill({
+      json: {
+        message: 'valid',
+        payload: { orderId: '23', valid: true },
+      },
+    });
+  });
+
+  await page.goto('/delivery');
+
+  await expect(page).toHaveURL(/.*\/delivery/);
+  await expect(page.getByText('Here is your JWT Pizza!')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Verify' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Order more' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Verify' }).click();
+
+  await expect(page.getByText('JWT Pizza - valid')).toBeVisible();
+  await expect(page.getByText('orderId')).toBeVisible();
+  await expect(page.getByText('23')).toBeVisible();
+});
+
 test('purchase with login', async ({ page }) => {
   await basicInit(page);
 
