@@ -6,6 +6,7 @@ async function basicInit(page) {
   const validUsers = {
     'd@jwt.com': { id: '3', name: 'Kai Chen', email: 'd@jwt.com', password: 'a', roles: [{ role: Role.Diner }] },
     'admin@jwt.com': { id: '99', name: 'Admin User', email: 'admin@jwt.com', password: 'a', roles: [{ role: Role.Admin }] },
+    'franchise@jwt.com': { id: '12', name: 'Franchise Owner', email: 'franchise@jwt.com', password: 'a', roles: [{ role: Role.Franchisee, objectId: '2' }] },
   };
 
   await page.route('*/**/api/auth', async (route) => {
@@ -62,7 +63,26 @@ async function basicInit(page) {
     await route.fulfill({ json: menuRes });
   });
 
-  await page.route(/\/api\/franchise(\?.*)?$/, async (route) => {
+  await page.route(/\/api\/franchise(?:\/\d+)?(\?.*)?$/, async (route) => {
+    const url = route.request().url();
+    const isUserSpecific = /\/api\/franchise\/\d+/.test(url);
+
+    if (isUserSpecific) {
+      await route.fulfill({
+        json: [
+          {
+            id: 2,
+            name: 'LotaPizza',
+            stores: [
+              { id: 4, name: 'Lehi', totalRevenue: 250 },
+              { id: 5, name: 'Springville', totalRevenue: 180 },
+            ],
+          },
+        ],
+      });
+      return;
+    }
+
     const franchiseRes = {
       franchises: [
         {
@@ -156,6 +176,22 @@ test('admin dashboard works', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Franchises' })).toBeVisible();
   await expect(page.getByText('LotaPizza')).toBeVisible();
   await expect(page.getByText('PizzaCorp')).toBeVisible();
+});
+
+test('franchise dashboard works', async ({ page }) => {
+  await basicInit(page);
+
+  await page.getByRole('link', { name: 'Login' }).click();
+  await page.getByRole('textbox', { name: 'Email address' }).fill('franchise@jwt.com');
+  await page.getByRole('textbox', { name: 'Password' }).fill('a');
+  await page.getByRole('button', { name: 'Login' }).click();
+
+  await page.goto('/franchise-dashboard');
+
+  await expect(page.getByText('LotaPizza')).toBeVisible();
+  await expect(page.getByText('Lehi')).toBeVisible();
+  await expect(page.getByText('Springville')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Create store' })).toBeVisible();
 });
 
 test('about page works', async ({ page }) => {
