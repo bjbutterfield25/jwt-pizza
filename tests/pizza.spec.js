@@ -56,6 +56,15 @@ async function basicInit(page) {
   });
 
   await page.route('*/**/api/order', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        json: {
+          orders: [],
+        },
+      });
+      return;
+    }
+
     const orderReq = route.request().postDataJSON();
     const orderRes = {
       order: { ...orderReq, id: 23 },
@@ -86,6 +95,53 @@ test('about page works', async ({ page }) => {
   await expect(page.getByText('The secret sauce')).toBeVisible();
   await expect(page.getByText('At JWT Pizza, our amazing employees are the secret behind our delicious pizzas.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Our employees' })).toBeVisible();
+});
+
+test('diner dashboard works', async ({ page }) => {
+  await basicInit(page);
+
+  await page.route('*/**/api/order', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        json: {
+          orders: [
+            {
+              id: 42,
+              date: '2024-01-15T12:00:00Z',
+              items: [
+                { id: 1, title: 'Veggie', price: 0.0038 },
+                { id: 2, title: 'Pepperoni', price: 0.0042 },
+              ],
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    const orderReq = route.request().postDataJSON();
+    const orderRes = {
+      order: { ...orderReq, id: 23 },
+      jwt: 'eyJpYXQ',
+    };
+    await route.fulfill({ json: orderRes });
+  });
+
+  await page.getByRole('link', { name: 'Login' }).click();
+  await page.getByRole('textbox', { name: 'Email address' }).fill('d@jwt.com');
+  await page.getByRole('textbox', { name: 'Password' }).fill('a');
+  await page.getByRole('button', { name: 'Login' }).click();
+
+  await expect(page.getByRole('link', { name: 'KC' })).toBeVisible();
+  await page.goto('/diner-dashboard');
+
+  await expect(page.getByText('Your pizza kitchen')).toBeVisible();
+  await expect(page.getByText('Kai Chen')).toBeVisible();
+  await expect(page.getByText('d@jwt.com')).toBeVisible();
+  const matches = await page.getByText('diner').all();
+  await expect(matches).toHaveLength(2);
+  await expect(page.getByText('Here is your history of all the good times.')).toBeVisible();
+  await expect(page.getByText('42')).toBeVisible();
 });
 
 test('purchase with login', async ({ page }) => {
