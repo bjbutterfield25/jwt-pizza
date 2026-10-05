@@ -3,7 +3,10 @@ import { Role } from '../src/service/pizzaService';
 
 async function basicInit(page) {
   let loggedInUser;
-  const validUsers = { 'd@jwt.com': { id: '3', name: 'Kai Chen', email: 'd@jwt.com', password: 'a', roles: [{ role: Role.Diner }] } };
+  const validUsers = {
+    'd@jwt.com': { id: '3', name: 'Kai Chen', email: 'd@jwt.com', password: 'a', roles: [{ role: Role.Diner }] },
+    'admin@jwt.com': { id: '99', name: 'Admin User', email: 'admin@jwt.com', password: 'a', roles: [{ role: Role.Admin }] },
+  };
 
   await page.route('*/**/api/auth', async (route) => {
     const request = route.request();
@@ -137,6 +140,22 @@ test('logout', async ({ page }) => {
   await expect(page).toHaveURL(/.*\//);
   await expect(page.getByRole('link', { name: 'Login' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'KC' })).not.toBeVisible();
+});
+
+test('admin dashboard works', async ({ page }) => {
+  await basicInit(page);
+
+  await page.getByRole('link', { name: 'Login' }).click();
+  await page.getByRole('textbox', { name: 'Email address' }).fill('admin@jwt.com');
+  await page.getByRole('textbox', { name: 'Password' }).fill('a');
+  await page.getByRole('button', { name: 'Login' }).click();
+
+  await page.getByRole('link', { name: 'Admin' }).click();
+
+  await expect(page.getByText("Mama Ricci's kitchen")).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Franchises' })).toBeVisible();
+  await expect(page.getByText('LotaPizza')).toBeVisible();
+  await expect(page.getByText('PizzaCorp')).toBeVisible();
 });
 
 test('about page works', async ({ page }) => {
