@@ -7,8 +7,15 @@ async function basicInit(page) {
 
   await page.route('*/**/api/auth', async (route) => {
     const request = route.request();
-    const authReq = request.postDataJSON();
     const method = request.method();
+
+    if (method === 'DELETE') {
+      loggedInUser = null;
+      await route.fulfill({ json: {} });
+      return;
+    }
+
+    const authReq = request.postDataJSON?.() || {};
 
     if (method === 'POST') {
       const newUser = {
@@ -114,6 +121,22 @@ test('register', async ({ page }) => {
   await page.getByRole('button', { name: 'Register' }).click();
 
   await expect(page.getByRole('link', { name: 'NU' })).toBeVisible();
+});
+
+test('logout', async ({ page }) => {
+  await basicInit(page);
+  await page.getByRole('link', { name: 'Login' }).click();
+  await page.getByRole('textbox', { name: 'Email address' }).fill('d@jwt.com');
+  await page.getByRole('textbox', { name: 'Password' }).fill('a');
+  await page.getByRole('button', { name: 'Login' }).click();
+
+  await expect(page.getByRole('link', { name: 'KC' })).toBeVisible();
+
+  await page.getByRole('link', { name: 'Logout' }).click();
+
+  await expect(page).toHaveURL(/.*\//);
+  await expect(page.getByRole('link', { name: 'Login' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'KC' })).not.toBeVisible();
 });
 
 test('about page works', async ({ page }) => {
