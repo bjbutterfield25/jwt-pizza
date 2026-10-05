@@ -336,7 +336,7 @@ test('diner dashboard works', async ({ page }) => {
         json: {
           orders: [
             {
-              id: 42,
+              id: 999999999,
               date: '2024-01-15T12:00:00Z',
               items: [
                 { id: 1, title: 'Veggie', price: 0.0038 },
@@ -371,7 +371,7 @@ test('diner dashboard works', async ({ page }) => {
   const matches = await page.getByText('diner').all();
   await expect(matches).toHaveLength(2);
   await expect(page.getByText('Here is your history of all the good times.')).toBeVisible();
-  await expect(page.getByText('42')).toBeVisible();
+  await expect(page.getByText('999999999')).toBeVisible();
 });
 
 test('purchase with login', async ({ page }) => {
