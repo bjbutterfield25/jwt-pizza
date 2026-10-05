@@ -264,6 +264,8 @@ test('create store works', async ({ page }) => {
   await page.getByRole('button', { name: 'Login' }).click();
 
   await page.goto('/franchise-dashboard');
+  await expect(page.getByText('LotaPizza')).toBeVisible();
+  await expect(page.getByText('Lehi')).toBeVisible();
   await page.getByRole('button', { name: 'Create store' }).click();
 
   await expect(page).toHaveURL(/.*create-store/);
@@ -287,6 +289,8 @@ test('close store works', async ({ page }) => {
   await page.getByRole('button', { name: 'Login' }).click();
 
   await page.goto('/franchise-dashboard');
+  await expect(page.getByText('LotaPizza')).toBeVisible();
+  await expect(page.getByText('Lehi')).toBeVisible();
   await page.getByRole('button', { name: 'Close' }).first().click();
 
   await expect(page).toHaveURL(/.*close-store/);
