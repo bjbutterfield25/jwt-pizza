@@ -201,5 +201,91 @@ test('updateUser preserves franchisee role information when editing profile', as
 
     await expect(page.getByText('Franchise Owner Updated')).toBeVisible();
     await expect(page.getByText('franchise-updated@jwt.com')).toBeVisible();
+});
 
+test('listUsers returns the current set of users', async ({ page }) => {
+    await mockUserApi(page);
+    await login(page, 'admin@jwt.com', 'a');
+
+    await page.route('*/**/api/user*', async (route) => {
+        const request = route.request();
+        if (request.method() !== 'GET') {
+            await route.fulfill({ json: {} });
+            return;
+        }
+
+        const users = [
+            { id: '99', name: 'Admin User', email: 'admin@jwt.com', roles: [{ role: Role.Admin }] },
+            { id: '3', name: 'Kai Chen', email: 'd@jwt.com', roles: [{ role: Role.Diner }] },
+            { id: '12', name: 'Franchise Owner', email: 'franchise@jwt.com', roles: [{ role: Role.Franchisee, objectId: '2' }] },
+        ];
+
+        await route.fulfill({
+            json: {
+                users,
+                page: 0,
+                limit: 10,
+                total: users.length,
+            },
+        });
+    });
+
+    const response = await page.evaluate(async () => {
+        const r = await fetch('/api/user');
+        return r.json();
+    });
+
+    expect(response.total).toBe(3);
+    expect(response.users.map((user) => user.email).sort()).toEqual(['admin@jwt.com', 'd@jwt.com', 'franchise@jwt.com'].sort());
+});
+
+test('listUsers paginates results by page and limit', async ({ page }) => {
+    await mockUserApi(page);
+    await login(page, 'admin@jwt.com', 'a');
+
+    const users = [
+        { id: '99', name: 'Admin User', email: 'admin@jwt.com', roles: [{ role: Role.Admin }] },
+        { id: '3', name: 'Kai Chen', email: 'd@jwt.com', roles: [{ role: Role.Diner }] },
+        { id: '12', name: 'Franchise Owner', email: 'franchise@jwt.com', roles: [{ role: Role.Franchisee, objectId: '2' }] },
+    ];
+
+    await page.route('*/**/api/user*', async (route) => {
+        const request = route.request();
+        if (request.method() !== 'GET') {
+            await route.fulfill({ json: {} });
+            return;
+        }
+
+        const url = new URL(request.url());
+        const pageNumber = Number(url.searchParams.get('page') || '0');
+        const pageSize = Number(url.searchParams.get('limit') || '10');
+        const start = pageNumber * pageSize;
+        const pagedUsers = users.slice(start, start + pageSize);
+
+        await route.fulfill({
+            json: {
+                users: pagedUsers,
+                page: pageNumber,
+                limit: pageSize,
+                total: users.length,
+            },
+        });
+    });
+
+    const firstPage = await page.evaluate(async () => {
+        const r = await fetch('/api/user?page=0&limit=2');
+        return r.json();
+    });
+
+    const secondPage = await page.evaluate(async () => {
+        const r = await fetch('/api/user?page=1&limit=2');
+        return r.json();
+    });
+
+    expect(firstPage.page).toBe(0);
+    expect(firstPage.limit).toBe(2);
+    expect(firstPage.users).toHaveLength(2);
+    expect(secondPage.page).toBe(1);
+    expect(secondPage.limit).toBe(2);
+    expect(secondPage.users).toHaveLength(1);
 });
