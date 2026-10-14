@@ -179,6 +179,40 @@ test('admin dashboard works', async ({ page }) => {
   await expect(page.getByText('PizzaCorp')).toBeVisible();
 });
 
+test('admin dashboard handles the name filter', async ({ page }) => {
+  await basicInit(page);
+
+  await page.route('*/**/api/franchise*', async (route) => {
+    const request = route.request();
+    if (request.method() !== 'GET') {
+      await route.fulfill({ json: {} });
+      return;
+    }
+
+    const url = new URL(request.url());
+    const filter = url.searchParams.get('name') || '*';
+    const franchises = [
+      { id: 2, name: 'LotaPizza', stores: [{ id: 4, name: 'Lehi' }, { id: 5, name: 'Springville' }] },
+      { id: 3, name: 'PizzaCorp', stores: [{ id: 7, name: 'Spanish Fork' }] },
+      { id: 4, name: 'topSpot', stores: [] },
+    ].filter((franchise) => filter === '*' || franchise.name.toLowerCase().includes(filter.toLowerCase().replace(/\*/g, '')));
+
+    await route.fulfill({ json: { franchises, more: false } });
+  });
+
+  await page.getByRole('link', { name: 'Login' }).click();
+  await page.getByRole('textbox', { name: 'Email address' }).fill('admin@jwt.com');
+  await page.getByRole('textbox', { name: 'Password' }).fill('a');
+  await page.getByRole('button', { name: 'Login' }).click();
+
+  await page.getByRole('link', { name: 'Admin' }).click();
+  await page.getByPlaceholder('Filter franchises').fill('Lota');
+  await page.getByRole('button', { name: 'Submit' }).click();
+
+  await expect(page.getByText('LotaPizza')).toBeVisible();
+  await expect(page.getByText('PizzaCorp')).not.toBeVisible();
+});
+
 test('franchise dashboard works', async ({ page }) => {
   await basicInit(page);
 
