@@ -8,6 +8,15 @@ async function basicInit(page) {
     'admin@jwt.com': { id: '99', name: 'Admin User', email: 'admin@jwt.com', password: 'a', roles: [{ role: Role.Admin }] },
     'franchise@jwt.com': { id: '12', name: 'Franchise Owner', email: 'franchise@jwt.com', password: 'a', roles: [{ role: Role.Franchisee, objectId: '2' }] },
   };
+  const listedUsers = [
+    ...Object.values(validUsers).map(({ password, ...user }) => user),
+    ...Array.from({ length: 9 }, (_, index) => ({
+      id: String(index + 20),
+      name: `Diner ${index + 1}`,
+      email: `diner${index + 1}@jwt.com`,
+      roles: [{ role: Role.Diner }],
+    })),
+  ];
 
   await page.route('*/**/api/auth', async (route) => {
     const request = route.request();
@@ -52,6 +61,31 @@ async function basicInit(page) {
   await page.route('*/**/api/user/me', async (route) => {
     expect(route.request().method()).toBe('GET');
     await route.fulfill({ json: loggedInUser });
+  });
+
+  await page.route(/\/api\/user(?:\?.*)?$/, async (route) => {
+    expect(route.request().method()).toBe('GET');
+    const url = new URL(route.request().url());
+    const pageNumber = Number(url.searchParams.get('page') || '0');
+    const limit = Number(url.searchParams.get('limit') || '10');
+    const filter = (url.searchParams.get('name') || '*').replace(/\*/g, '').toLowerCase();
+    const filteredUsers = listedUsers.filter((user) => user.name.toLowerCase().includes(filter));
+    const start = pageNumber * limit;
+    const users = filteredUsers.slice(start, start + limit);
+
+    await route.fulfill({ json: { users, more: start + limit < filteredUsers.length } });
+  });
+
+  await page.route(/\/api\/user\/([^/?]+)$/, async (route) => {
+    if (route.request().method() !== 'DELETE') {
+      await route.fallback();
+      return;
+    }
+
+    const userId = new URL(route.request().url()).pathname.split('/').pop();
+    const userIndex = listedUsers.findIndex((user) => user.id === userId);
+    if (userIndex >= 0) listedUsers.splice(userIndex, 1);
+    await route.fulfill({ json: {} });
   });
 
   await page.route('*/**/api/order/menu', async (route) => {
@@ -177,6 +211,69 @@ test('admin dashboard works', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Franchises' })).toBeVisible();
   await expect(page.getByText('LotaPizza')).toBeVisible();
   await expect(page.getByText('PizzaCorp')).toBeVisible();
+});
+
+test('admin can list users with name, email, and role', async ({ page }) => {
+  await basicInit(page);
+  await page.getByRole('link', { name: 'Login' }).click();
+  await page.getByRole('textbox', { name: 'Email address' }).fill('admin@jwt.com');
+  await page.getByRole('textbox', { name: 'Password' }).fill('a');
+  await page.getByRole('button', { name: 'Login' }).click();
+  await page.getByRole('link', { name: 'Admin' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible();
+  await expect(page.getByText('Kai Chen')).toBeVisible();
+  await expect(page.getByText('d@jwt.com')).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'diner', exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Franchisee on 2')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Delete Admin User' })).toHaveCount(0);
+});
+
+test('admin can paginate the user list', async ({ page }) => {
+  await basicInit(page);
+  await page.getByRole('link', { name: 'Login' }).click();
+  await page.getByRole('textbox', { name: 'Email address' }).fill('admin@jwt.com');
+  await page.getByRole('textbox', { name: 'Password' }).fill('a');
+  await page.getByRole('button', { name: 'Login' }).click();
+  await page.getByRole('link', { name: 'Admin' }).click();
+
+  await expect(page.getByText('Diner 7')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Next users' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Next users' }).click();
+
+  await expect(page.getByText('Diner 7')).not.toBeVisible();
+  await expect(page.getByText('Diner 9')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Previous users' })).toBeEnabled();
+});
+
+test('admin can filter users by name', async ({ page }) => {
+  await basicInit(page);
+  await page.getByRole('link', { name: 'Login' }).click();
+  await page.getByRole('textbox', { name: 'Email address' }).fill('admin@jwt.com');
+  await page.getByRole('textbox', { name: 'Password' }).fill('a');
+  await page.getByRole('button', { name: 'Login' }).click();
+  await page.getByRole('link', { name: 'Admin' }).click();
+
+  await page.getByPlaceholder('Filter users by name').fill('Kai');
+  await page.getByRole('button', { name: 'Filter' }).click();
+
+  await expect(page.getByText('Kai Chen')).toBeVisible();
+  await expect(page.getByText('Diner 1')).not.toBeVisible();
+  await expect(page.getByRole('button', { name: 'Next users' })).toBeDisabled();
+});
+
+test('admin can delete another user', async ({ page }) => {
+  await basicInit(page);
+  await page.getByRole('link', { name: 'Login' }).click();
+  await page.getByRole('textbox', { name: 'Email address' }).fill('admin@jwt.com');
+  await page.getByRole('textbox', { name: 'Password' }).fill('a');
+  await page.getByRole('button', { name: 'Login' }).click();
+  await page.getByRole('link', { name: 'Admin' }).click();
+
+  await page.getByRole('button', { name: 'Delete Kai Chen' }).click();
+
+  await expect(page.getByText('Kai Chen')).not.toBeVisible();
+  await expect(page.getByText('d@jwt.com')).not.toBeVisible();
 });
 
 test('admin dashboard handles the name filter', async ({ page }) => {

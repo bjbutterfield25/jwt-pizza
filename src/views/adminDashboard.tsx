@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import NotFound from './notFound';
 import Button from '../components/button';
 import { pizzaService } from '../service/service';
-import { Franchise, FranchiseList, Role, Store, User } from '../service/pizzaService';
+import { Franchise, FranchiseList, Role, Store, User, UserList } from '../service/pizzaService';
 import { TrashIcon } from '../icons';
 
 interface Props {
@@ -16,12 +16,22 @@ export default function AdminDashboard(props: Props) {
   const [franchiseList, setFranchiseList] = React.useState<FranchiseList>({ franchises: [], more: false });
   const [franchisePage, setFranchisePage] = React.useState(0);
   const filterFranchiseRef = React.useRef<HTMLInputElement>(null);
+  const [userList, setUserList] = React.useState<UserList>({ users: [], more: false });
+  const [userPage, setUserPage] = React.useState(0);
+  const [userNameFilter, setUserNameFilter] = React.useState('*');
+  const filterUserRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     (async () => {
       setFranchiseList(await pizzaService.getFranchises(franchisePage, 3, '*'));
     })();
   }, [props.user, franchisePage]);
+
+  React.useEffect(() => {
+    (async () => {
+      setUserList(await pizzaService.getUsers(userPage, 10, userNameFilter));
+    })();
+  }, [props.user, userPage, userNameFilter]);
 
   function createFranchise() {
     navigate('/admin-dashboard/create-franchise');
@@ -39,11 +49,68 @@ export default function AdminDashboard(props: Props) {
     setFranchiseList(await pizzaService.getFranchises(franchisePage, 10, `*${filterFranchiseRef.current?.value}*`));
   }
 
+  function filterUsers() {
+    setUserPage(0);
+    setUserNameFilter(`*${filterUserRef.current?.value || ''}*`);
+  }
+
+  async function deleteUser(user: User) {
+    if (!user.id) return;
+    await pizzaService.deleteUser(user.id);
+    setUserList((current) => ({ ...current, users: current.users.filter((listedUser) => listedUser.id !== user.id) }));
+  }
+
+  function formatUserRoles(user: User) {
+    return (user.roles || []).map(({ role, objectId }) => (role === Role.Franchisee && objectId ? `Franchisee on ${objectId}` : role)).join(', ');
+  }
+
   let response = <NotFound />;
   if (Role.isRole(props.user, Role.Admin)) {
     response = (
       <View title="Mama Ricci's kitchen">
         <div className="text-start py-8 px-4 sm:px-6 lg:px-8">
+          <h3 className="text-neutral-100 text-xl">Users</h3>
+          <div className="bg-neutral-100 overflow-clip my-4">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="uppercase text-neutral-100 bg-slate-400 border-b-2 border-gray-500">
+                  <tr>
+                    {['Name', 'Email', 'Role', 'Action'].map((header) => (
+                      <th key={header} scope="col" className="px-6 py-3 text-center text-xs font-medium">{header}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {userList.users.map((listedUser) => (
+                    <tr key={listedUser.id || listedUser.email}>
+                      <td className="px-2 py-2 text-sm text-gray-800">{listedUser.name}</td>
+                      <td className="px-2 py-2 text-sm text-gray-800">{listedUser.email}</td>
+                      <td className="px-2 py-2 text-sm text-gray-800">{formatUserRoles(listedUser)}</td>
+                      <td className="px-2 py-2 text-end text-sm">
+                        {listedUser.id !== props.user?.id && (
+                          <button type="button" aria-label={`Delete ${listedUser.name || listedUser.email}`} className="px-2 py-1 text-sm font-semibold border border-orange-400 text-orange-600 hover:border-orange-800 hover:text-orange-800" onClick={() => deleteUser(listedUser)}>
+                            Delete
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td className="px-1 py-1">
+                      <input type="text" ref={filterUserRef} name="filterUser" placeholder="Filter users by name" className="px-2 py-1 text-sm border border-gray-300 rounded-lg" />
+                      <button type="button" className="ml-2 px-2 py-1 text-sm font-semibold border border-orange-400 text-orange-600 hover:border-orange-800 hover:text-orange-800" onClick={filterUsers}>Filter</button>
+                    </td>
+                    <td colSpan={3} className="text-end text-sm font-medium">
+                      <button aria-label="Previous users" className="w-12 p-1 m-1 bg-white disabled:bg-neutral-300" onClick={() => setUserPage(userPage - 1)} disabled={userPage <= 0}>«</button>
+                      <button aria-label="Next users" className="w-12 p-1 m-1 bg-white disabled:bg-neutral-300" onClick={() => setUserPage(userPage + 1)} disabled={!userList.more}>»</button>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
           <h3 className="text-neutral-100 text-xl">Franchises</h3>
           <div className="bg-neutral-100 overflow-clip my-4">
             <div className="flex flex-col">
