@@ -123,7 +123,7 @@ class HttpPizzaService implements PizzaService {
     return Promise.resolve(user);
   }
 
-  async getUsers(page: number = 0, limit: number = 10, nameFilter: string = '*'): Promise<UserList> {
+  async getUsers(page: number = 1, limit: number = 10, nameFilter: string = '*'): Promise<UserList> {
     return this.callEndpoint(`/api/user?page=${page}&limit=${limit}&name=${encodeURIComponent(nameFilter)}`);
   }
 

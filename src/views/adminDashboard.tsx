@@ -17,7 +17,7 @@ export default function AdminDashboard(props: Props) {
   const [franchisePage, setFranchisePage] = React.useState(0);
   const filterFranchiseRef = React.useRef<HTMLInputElement>(null);
   const [userList, setUserList] = React.useState<UserList>({ users: [], more: false });
-  const [userPage, setUserPage] = React.useState(0);
+  const [userPage, setUserPage] = React.useState(1);
   const [userNameFilter, setUserNameFilter] = React.useState('*');
   const filterUserRef = React.useRef<HTMLInputElement>(null);
 
@@ -50,7 +50,7 @@ export default function AdminDashboard(props: Props) {
   }
 
   function filterUsers() {
-    setUserPage(0);
+    setUserPage(1);
     setUserNameFilter(`*${filterUserRef.current?.value || ''}*`);
   }
 
@@ -103,7 +103,7 @@ export default function AdminDashboard(props: Props) {
                       <button type="button" className="ml-2 px-2 py-1 text-sm font-semibold border border-orange-400 text-orange-600 hover:border-orange-800 hover:text-orange-800" onClick={filterUsers}>Filter</button>
                     </td>
                     <td colSpan={3} className="text-end text-sm font-medium">
-                      <button aria-label="Previous users" className="w-12 p-1 m-1 bg-white disabled:bg-neutral-300" onClick={() => setUserPage(userPage - 1)} disabled={userPage <= 0}>«</button>
+                      <button aria-label="Previous users" className="w-12 p-1 m-1 bg-white disabled:bg-neutral-300" onClick={() => setUserPage(userPage - 1)} disabled={userPage <= 1}>«</button>
                       <button aria-label="Next users" className="w-12 p-1 m-1 bg-white disabled:bg-neutral-300" onClick={() => setUserPage(userPage + 1)} disabled={!userList.more}>»</button>
                     </td>
                   </tr>

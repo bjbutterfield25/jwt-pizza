@@ -66,11 +66,11 @@ async function basicInit(page) {
   await page.route(/\/api\/user(?:\?.*)?$/, async (route) => {
     expect(route.request().method()).toBe('GET');
     const url = new URL(route.request().url());
-    const pageNumber = Number(url.searchParams.get('page') || '0');
+    const pageNumber = Number(url.searchParams.get('page') || '1');
     const limit = Number(url.searchParams.get('limit') || '10');
     const filter = (url.searchParams.get('name') || '*').replace(/\*/g, '').toLowerCase();
     const filteredUsers = listedUsers.filter((user) => user.name.toLowerCase().includes(filter));
-    const start = pageNumber * limit;
+    const start = (pageNumber - 1) * limit;
     const users = filteredUsers.slice(start, start + limit);
 
     await route.fulfill({ json: { users, more: start + limit < filteredUsers.length } });
