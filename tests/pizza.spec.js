@@ -539,8 +539,7 @@ test('delivery page works', async ({ page }) => {
   await page.getByRole('button', { name: 'Verify' }).click();
 
   await expect(page.getByText('JWT Pizza - valid')).toBeVisible();
-  await expect(page.getByText('orderId')).toBeVisible();
-  await expect(page.getByText('23')).toBeVisible();
+  await expect(page.locator('pre')).toContainText('"orderId": "23"');
 });
 
 test('purchase with login', async ({ page }) => {
